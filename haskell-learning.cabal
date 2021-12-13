@@ -61,7 +61,8 @@ executable haskell-learning
                       MyMonoid,
                       MyFunctor,
                       Failure,
-                      MyApplicative
+                      MyApplicative,
+                      MyMonad
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
