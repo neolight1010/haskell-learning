@@ -1,15 +1,7 @@
 module Main where
 
-import Failure (Failure (Ok, Fail))
-import MyMonad (MyMonad (bind', return'))
-
-safeDivide :: Failure Int -> Failure Int -> Failure Int
-safeDivide xm ym =
-  bind'
-    xm
-    ( \x ->
-        bind' ym (\y -> if y == 0 then Fail else return' (x `div` y))
-    )
+import SafeDivide (safeDivide)
+import Failure
 
 main :: IO ()
 main = do
