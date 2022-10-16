@@ -27,5 +27,8 @@ executable interpreter
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base ^>=4.16.3.0
+    ghc-options:
+      -Wall
+      -Werror
     hs-source-dirs:   app
     default-language: Haskell2010
