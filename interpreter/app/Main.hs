@@ -21,9 +21,10 @@ data Value
   | Closure Env [Id] Expr
   deriving (Show, Eq)
 
-data Defn = Val Id Expr
-          | Rec Id Expr
-          deriving (Show, Eq)
+data Defn
+  = Val Id Expr
+  | Rec Id Expr
+  deriving (Show, Eq)
 
 type Env = [(Id, Value)]
 
@@ -81,7 +82,7 @@ find env id' = snd . head . filter ((== id') . fst) $ env
 
 elab :: Defn -> Env -> Env
 elab (Val id' expr) env = (id', eval env expr) : env
-elab (Rec id' (Lambda args expr)) env = env' where env' = (id', Closure env' args expr):env
+elab (Rec id' (Lambda args expr)) env = env' where env' = (id', Closure env' args expr) : env
 elab _ _ = error "Only lambdas can be recursive"
 
 main :: IO ()
