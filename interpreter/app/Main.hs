@@ -10,19 +10,20 @@ data Expr
   | Var Id
   | Let Defn Expr
   | If Expr Expr Expr
+  | Equals Expr Expr
   | Lambda [Id] Expr
   | Apply Expr [Expr]
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Value
   = NumVal Int
   | BoolVal Bool
   | Closure Env [Id] Expr
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Defn = Val Id Expr
           | Rec Id Expr
-          deriving (Show)
+          deriving (Show, Eq)
 
 type Env = [(Id, Value)]
 
@@ -61,6 +62,10 @@ eval env (If g e1 e2) = case eval env g of
   BoolVal True -> eval env e1
   BoolVal False -> eval env e2
   _ -> error "Only booleans are allowed in if expressions"
+eval env (Equals e1 e2) = BoolVal $ e1' == e2'
+  where
+    e1' = eval env e1
+    e2' = eval env e2
 eval env (Lambda ids e) = Closure env ids e
 eval env (Apply f exprs) = apply closure args
   where
