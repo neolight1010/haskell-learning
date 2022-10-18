@@ -4,16 +4,19 @@ type Id = String
 
 data Expr
   = Number Int
+  | Boolean Bool
   | Plus Expr Expr
   | Minus Expr Expr
   | Var Id
   | Let Defn Expr
+  | If Expr Expr Expr
   | Lambda [Id] Expr
   | Apply Expr [Expr]
   deriving (Show)
 
 data Value
   = NumVal Int
+  | BoolVal Bool
   | Closure Env [Id] Expr
   deriving (Show)
 
@@ -35,9 +38,9 @@ eval env (Plus e1 e2) = NumVal $ v1 + v2
 
     numOrError v = case v of
       NumVal x -> x
-      Closure {} -> error closureError
+      _ -> error nonNumberError
 
-    closureError = "Only numbers can bu summed."
+    nonNumberError = "Only numbers can bu summed."
 eval env (Minus e1 e2) = NumVal $ v1 - v2
   where
     e1' = eval env e1
@@ -48,11 +51,16 @@ eval env (Minus e1 e2) = NumVal $ v1 - v2
 
     numOrError v = case v of
       NumVal x -> x
-      Closure {} -> error closureError
+      _ -> error nonNumberError
 
-    closureError = "Only numbers can be substracted."
+    nonNumberError = "Only numbers can be substracted."
+eval _ (Boolean b) = BoolVal b
 eval env (Var id') = find env id'
 eval env (Let defn e2) = eval (elab defn env) e2
+eval env (If g e1 e2) = case eval env g of
+  BoolVal True -> eval env e1
+  BoolVal False -> eval env e2
+  _ -> error "Only booleans are allowed in if expressions"
 eval env (Lambda ids e) = Closure env ids e
 eval env (Apply f exprs) = apply closure args
   where
