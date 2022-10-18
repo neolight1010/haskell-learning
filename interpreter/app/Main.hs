@@ -1,4 +1,4 @@
-module Main where
+module Main (Expr (..), Value (..), Defn (..), eval, apply, main) where
 
 type Id = String
 
