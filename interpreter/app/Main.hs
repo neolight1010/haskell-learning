@@ -1,32 +1,32 @@
 module Main (Expr (..), Value (..), Defn (..), eval, apply, main) where
 
-type Id = String
+type Ident = String
 
 data Expr
   = Number Int
   | Boolean Bool
   | Plus Expr Expr
   | Minus Expr Expr
-  | Var Id
+  | Var Ident
   | Let Defn Expr
   | If Expr Expr Expr
   | Equals Expr Expr
-  | Lambda [Id] Expr
+  | Lambda [Ident] Expr
   | Apply Expr [Expr]
   deriving (Show, Eq)
 
 data Value
   = NumVal Int
   | BoolVal Bool
-  | Closure Env [Id] Expr
+  | Closure Env [Ident] Expr
   deriving (Show, Eq)
 
 data Defn
-  = Val Id Expr
-  | Rec Id Expr
+  = Val Ident Expr
+  | Rec Ident Expr
   deriving (Show, Eq)
 
-type Env = [(Id, Value)]
+type Env = [(Ident, Value)]
 
 eval :: Env -> Expr -> Value
 eval _ (Number i) = NumVal i
@@ -77,7 +77,7 @@ apply :: Value -> [Value] -> Value
 apply (Closure env ids expr) vals = eval (zip ids vals ++ env) expr
 apply _ _ = error "Only functions can be evaluated."
 
-find :: Env -> Id -> Value
+find :: Env -> Ident -> Value
 find env id' = snd . head . filter ((== id') . fst) $ env
 
 elab :: Defn -> Env -> Env
