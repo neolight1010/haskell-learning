@@ -1,6 +1,11 @@
-module Main (Expr (..), Value (..), Defn (..), eval, apply, main) where
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
+module Main (Expr (..), Value (..), Defn (..), eval, apply, main, M) where
 
 type Ident = String
+
+type M = Either String
 
 data Expr
   = Number Int
@@ -28,62 +33,60 @@ data Defn
 
 type Env = [(Ident, Value)]
 
-eval :: Env -> Expr -> Value
-eval _ (Number i) = NumVal i
-eval env (Plus e1 e2) = NumVal $ v1 + v2
-  where
-    e1' = eval env e1
-    e2' = eval env e2
+eval :: Env -> Expr -> M Value
+eval _ (Number i) = pure $ NumVal i
+eval env (Plus e1 e2) = do
+  let parseNumVal e = eval env e >>= \e' -> case e' of
+        NumVal v -> Right v
+        _ -> Left "Only numbers can be summed."
 
-    v1 = numOrError e1'
-    v2 = numOrError e2'
+  v1 <- parseNumVal e1
+  v2 <- parseNumVal e2
 
-    numOrError v = case v of
-      NumVal x -> x
-      _ -> error nonNumberError
+  pure $ NumVal (v1 + v2)
 
-    nonNumberError = "Only numbers can bu summed."
-eval env (Minus e1 e2) = NumVal $ v1 - v2
-  where
-    e1' = eval env e1
-    e2' = eval env e2
+eval env (Minus e1 e2) = do
+  let parseNumVal e = eval env e >>= \e' -> case e' of
+        NumVal v -> Right v
+        _ -> Left "Only numbers can be subtracted."
 
-    v1 = numOrError e1'
-    v2 = numOrError e2'
+  v1 <- parseNumVal e1
+  v2 <- parseNumVal e2
 
-    numOrError v = case v of
-      NumVal x -> x
-      _ -> error nonNumberError
+  pure $ NumVal (v1 - v2)
 
-    nonNumberError = "Only numbers can be substracted."
-eval _ (Boolean b) = BoolVal b
-eval env (Var id') = find env id'
-eval env (Let defn e2) = eval (elab defn env) e2
-eval env (If g e1 e2) = case eval env g of
+eval _ (Boolean b) = pure $ BoolVal b
+eval env (Var id') = pure $ find env id'
+eval env (Let defn e2) = elab defn env >>= \env' -> eval env' e2
+eval env (If g e1 e2) = eval env g >>= \r -> case r of
   BoolVal True -> eval env e1
   BoolVal False -> eval env e2
   _ -> error "Only booleans are allowed in if expressions"
-eval env (Equals e1 e2) = BoolVal $ e1' == e2'
+eval env (Equals e1 e2) = BoolVal <$> ((==) <$> e1' <*> e2')
   where
     e1' = eval env e1
     e2' = eval env e2
-eval env (Lambda ids e) = Closure env ids e
-eval env (Apply f exprs) = apply closure args
-  where
-    closure = eval env f
-    args = map (eval env) exprs
+eval env (Lambda ids e) = pure $ Closure env ids e
+eval env (Apply f exprs) = do
+  closure <- eval env f
+  args <- mapM (eval env) exprs
+  apply closure args
 
-apply :: Value -> [Value] -> Value
+apply :: Value -> [Value] -> M Value
 apply (Closure env ids expr) vals = eval (zip ids vals ++ env) expr
-apply _ _ = error "Only functions can be evaluated."
+apply _ _ = Left "Only functions can be evaluated."
 
 find :: Env -> Ident -> Value
 find env id' = snd . head . filter ((== id') . fst) $ env
 
-elab :: Defn -> Env -> Env
-elab (Val id' expr) env = (id', eval env expr) : env
-elab (Rec id' (Lambda args expr)) env = env' where env' = (id', Closure env' args expr) : env
-elab _ _ = error "Only lambdas can be recursive"
+elab :: Defn -> Env -> M Env
+elab (Val id' expr) env = do
+  e' <- eval env expr
+  pure $ (id', e'):env
+elab (Rec id' (Lambda ids e)) env = pure env'
+  where
+    env' = (id', Closure env' ids e):env
+elab _ _ = Left "Only lambdas can be recursive"
 
 main :: IO ()
 main = putStrLn "Hello, Haskell!"

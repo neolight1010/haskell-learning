@@ -1,6 +1,6 @@
 module Examples where
 
-import Main (Expr (..), Defn (..))
+import Main (Expr (..), Defn (..), eval, M, Value (..))
 
 sumExpr :: Expr -> Expr
 sumExpr =
@@ -22,3 +22,9 @@ sumExpr =
             )
         )
     )
+
+sumResult :: M Value
+sumResult = eval [] (sumExpr (Apply (Var "sum") [Number 3]))
+
+invalidResult :: M Value
+invalidResult = eval [] (Plus (Number 5) (Boolean True))
