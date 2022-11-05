@@ -3,6 +3,41 @@
 
 module Main (Expr (..), Value (..), Defn (..), eval, apply, main, M) where
 
+data Id a = Id a
+
+instance Functor Id where
+  fmap f (Id x) = Id (f x)
+
+instance Applicative Id where
+  pure x = Id x
+  (Id f) <*> (Id x) = Id (f x)
+
+instance Monad Id where
+  (Id x) >>= f = f x
+
+-- State implementation
+
+data State m a = State (m -> (a, m))
+
+instance Functor (State m) where
+  fmap f (State fs) = State $
+    \m -> let (a, m') = fs m
+          in (f a, m')
+
+instance Applicative (State m) where
+  pure x = State $ \m -> (x, m)
+
+  (State ffs) <*> (State fs) = State $ \m -> let (ffs', m') = ffs m in
+    let (fs', m'') = fs m' in
+    (ffs' fs', m'')
+
+instance Monad (State m) where
+  (State fs) >>= f = State $ \m -> let (x, m') = fs m in
+    let (State g) = f x in
+    g m'
+
+-- Interpreter implementation
+
 type Ident = String
 
 type M = Either String
