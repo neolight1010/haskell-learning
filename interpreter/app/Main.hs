@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Main (Expr (..), Value (..), Defn (..), eval, apply, main, M) where
+module Main (Expr (..), Value (..), Defn (..), eval, apply, main, M, State (runState)) where
 
 data Id a = Id a
 
@@ -17,7 +17,7 @@ instance Monad Id where
 
 -- State implementation
 
-data State m a = State (m -> (a, m))
+data State m a = State { runState :: m -> (a, m)}
 
 instance Functor (State m) where
   fmap f (State fs) = State $
@@ -36,11 +36,20 @@ instance Monad (State m) where
     let (State g) = f x in
     g m'
 
+
+get :: State m m
+get = State $ \m -> (m, m)
+
+set :: a -> State a ()
+set x = State $ \_ -> ((), x)
+
 -- Interpreter implementation
 
 type Ident = String
 
-type M = Either String
+type Mem = [Value]
+
+type M a = State Mem a
 
 data Expr
   = Number Int
@@ -53,12 +62,18 @@ data Expr
   | Equals Expr Expr
   | Lambda [Ident] Expr
   | Apply Expr [Expr]
+  | New
+  | Deref Expr
+  | Seq Expr Expr
+  | Assign Expr Expr
   deriving (Show, Eq)
 
 data Value
   = NumVal Int
   | BoolVal Bool
   | Closure Env [Ident] Expr
+  | Null
+  | MemAddr Int
   deriving (Show, Eq)
 
 data Defn
@@ -72,8 +87,8 @@ eval :: Env -> Expr -> M Value
 eval _ (Number i) = pure $ NumVal i
 eval env (Plus e1 e2) = do
   let parseNumVal e = eval env e >>= \e' -> case e' of
-        NumVal v -> Right v
-        _ -> Left "Only numbers can be summed."
+        NumVal v -> return v
+        _ -> error "Only numbers can be summed."
 
   v1 <- parseNumVal e1
   v2 <- parseNumVal e2
@@ -82,8 +97,8 @@ eval env (Plus e1 e2) = do
 
 eval env (Minus e1 e2) = do
   let parseNumVal e = eval env e >>= \e' -> case e' of
-        NumVal v -> Right v
-        _ -> Left "Only numbers can be subtracted."
+        NumVal v -> return v
+        _ -> error "Only numbers can be subtracted."
 
   v1 <- parseNumVal e1
   v2 <- parseNumVal e2
@@ -106,10 +121,38 @@ eval env (Apply f exprs) = do
   closure <- eval env f
   args <- mapM (eval env) exprs
   apply closure args
+eval env (Deref e) = do
+  i <- eval env e >>= \e' -> case e' of
+    MemAddr v -> return v
+    _ -> error "Only numbers allowed in Deref."
+
+  mem <- get
+
+  return $ mem !! i
+eval _ New = do
+  mem <- get
+
+  let ret = length mem
+  set $ mem ++ [Null]
+
+  return $ MemAddr ret
+eval env (Seq e1 e2) = eval env e1 >> eval env e2
+eval env (Assign e1 e2) = do
+  i <- eval env e1 >>= \e1' -> case e1' of
+    MemAddr i -> return i
+    _ -> error "Only MemAddr allowed in Assign."
+  e <- eval env e2
+
+  mem <- get
+  let mem' = take i mem ++ [e] ++ drop (i+1) mem
+
+  set mem'
+
+  return Null
 
 apply :: Value -> [Value] -> M Value
 apply (Closure env ids expr) vals = eval (zip ids vals ++ env) expr
-apply _ _ = Left "Only functions can be evaluated."
+apply _ _ = error "Only functions can be evaluated."
 
 find :: Env -> Ident -> Value
 find env id' = snd . head . filter ((== id') . fst) $ env
@@ -121,7 +164,7 @@ elab (Val id' expr) env = do
 elab (Rec id' (Lambda ids e)) env = pure env'
   where
     env' = (id', Closure env' ids e):env
-elab _ _ = Left "Only lambdas can be recursive"
+elab _ _ = error "Only lambdas can be recursive"
 
 main :: IO ()
 main = putStrLn "Hello, Haskell!"
