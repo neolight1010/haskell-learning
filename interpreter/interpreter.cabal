@@ -27,7 +27,10 @@ executable interpreter
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.17.0.0
+    build-depends:    base ^>=4.17.0.0,
+                      attoparsec,
+                      text
+
     ghc-options:
       -Wall
       -Werror
